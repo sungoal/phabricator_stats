@@ -1,0 +1,113 @@
+{% block body %}
+ 
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <h2>Authored</h2>
+  <div id="authored_div"  style="width: 900px;"></div><br/>
+  <h2>Closed</h2>
+  <div id="closed_div"  style="width: 900px;"></div><br/>
+  <h2>Reviewed</h2>
+  <div id="reviewed_div"  style="width: 900px;"></div><br/>
+
+
+<script type='text/javascript'>//<![CDATA[
+
+google.load("visualization", "1", {packages:["table"]});
+google.setOnLoadCallback(drawAuthored);
+
+function drawAuthored() {
+    const dataTable = new google.visualization.DataTable();
+    dataTable.addColumn('string', 'Name');
+    dataTable.addColumn('number', 'Authored Diffs');
+    dataTable.addColumn('string', 'Closure Time Per Diff');
+    dataTable.addColumn('number', 'Revision Count Per Diff');
+    dataTable.addColumn('number', 'Line Count Per Diff');
+    dataTable.addColumn('string', 'Jiras In Progress');
+    const data = JSON.parse('{{ data | tojson | safe}}');
+    for (const key in data) {
+      if (data.hasOwnProperty(key) && data[key]["authored"]) {
+        dataTable.addRow([
+          key,
+          data[key]["authored"]["authored_diffs"],
+          get_mean_value(data[key]["authored"]["closure_time_per_diff"]),
+          get_mean_value(data[key]["authored"]["revision_count_per_diff"]),
+          get_mean_value(data[key]["authored"]["line_count_per_diff"]),
+          data[key]["authored"]["jiras_in_progress"].join(",")
+        ]);
+      }
+    }
+
+    const table = new google.visualization.Table(document.getElementById('authored_div'));
+
+    table.draw(dataTable, {showRowNumber: false});
+}
+
+google.load("visualization", "1", {packages:["table"]});
+google.setOnLoadCallback(drawClosed);
+
+function drawClosed() {
+    const dataTable = new google.visualization.DataTable();
+    dataTable.addColumn('string', 'Name');
+    dataTable.addColumn('number', 'Closed Diffs');
+    dataTable.addColumn('string', 'Closure Time Per Diff');
+    dataTable.addColumn('number', 'Revision Count Per Diff');
+    dataTable.addColumn('number', 'Line Count Per Diff');
+    dataTable.addColumn('string', 'Jiras Resolved');
+    const data = JSON.parse('{{ data | tojson | safe}}');
+    for (const key in data) {
+      if (data.hasOwnProperty(key) && data[key]["closed"]) {
+        dataTable.addRow([
+          key,
+          data[key]["closed"]["closed_diffs"],
+          get_mean_value(data[key]["closed"]["closure_time_per_diff"]),
+          get_mean_value(data[key]["closed"]["revision_count_per_diff"]),
+          get_mean_value(data[key]["closed"]["line_count_per_diff"]),
+          data[key]["closed"]["jiras_resolved"].join(",")
+        ]);
+      }
+    }
+
+    const table = new google.visualization.Table(document.getElementById('closed_div'));
+
+    table.draw(dataTable, {showRowNumber: false});
+}
+
+google.load("visualization", "1", {packages:["table"]});
+google.setOnLoadCallback(drawReviewed);
+
+function drawReviewed() {
+    const dataTable = new google.visualization.DataTable();
+    dataTable.addColumn('string', 'Name');
+    dataTable.addColumn('number', 'Reviewed Diffs');
+    dataTable.addColumn('number', 'First Time To Respond(in hours)');
+    const data = JSON.parse('{{ data | tojson | safe}}');
+    for (const key in data) {
+      if (data.hasOwnProperty(key) && data[key]["reviewed"]) {
+        dataTable.addRow([
+          key,
+          data[key]["reviewed"]["reviewed_diffs"],
+          get_mean_value(data[key]["reviewed"]["first_time_to_respond"]),
+        ]);
+      }
+    }
+
+    const table = new google.visualization.Table(document.getElementById('reviewed_div'));
+
+    table.draw(dataTable, {showRowNumber: false});
+}
+
+function get_mean_value(object) {
+  let value = null;
+  if(object
+    && object !== 'null'
+    && object !== 'undefined'
+    && typeof object === 'object') {
+    value = object["mean"];
+  }
+  return value;
+}
+//]]>  
+ 
+</script>
+ 
+ 
+{% endblock %}

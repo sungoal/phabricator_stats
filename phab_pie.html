@@ -1,0 +1,259 @@
+{% block body %}
+
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+
+<style>
+    body {
+      margin: 20px;
+    }
+
+    .wrapper {
+      display: grid;
+      grid-template-columns: 900px;
+        grid-template-rows: 400px;
+      grid-gap: 50px;
+    }
+
+    .box {
+      border-radius: 5px;
+      padding: 1px;
+      font-size: 100%;
+    }
+</style>
+
+<form action="/pie" method="post">
+    <button name="reloadBtn" type="submit">Reload data</button>
+</form>
+
+<div class="wrapper">
+  <div id="count_div" class="box"></div>
+  <div id="line_div" class="box"></div>
+  <div id="revision_div" class="box"></div>
+  <div id="respond_div" class="box"></div>
+</div>
+<script type='text/javascript'>//<![CDATA[
+
+google.load("visualization", "1", {packages:["bar"]});
+google.setOnLoadCallback(drawCount);
+
+let countChart = null;
+let lineCountChart = null;
+let revisionChart = null;
+let respondChart = null;
+
+let countData = null;
+let lineCountData = null;
+let revisionData = null;
+let respondData = null;
+
+const scriptData = JSON.parse('{{ data | tojson | safe}}');
+
+function drawCount() {
+  const array = [['Author', 'Authored', 'Closed', 'Reviewed']];
+  for (const key in scriptData) {
+    if (scriptData.hasOwnProperty(key)) {
+      const authored_diffs = get_value(scriptData[key]["authored"], "authored_diffs");
+      const closed_diffs = get_value(scriptData[key]["closed"], "closed_diffs");
+      const reviewed_diffs = get_value(scriptData[key]["reviewed"], "reviewed_diffs");
+      const author = get_author(key);
+      array.push([
+        author,
+        authored_diffs,
+        closed_diffs,
+        reviewed_diffs
+      ]);
+    }
+  }
+  countData = google.visualization.arrayToDataTable(array);
+
+  const options = {
+    chart: {
+      title: 'Diff count',
+      hAxis: {
+        textStyle: {
+          fontSize: 20
+        }
+      },
+      legend: {
+        textStyle: {
+          fontSize: 10
+        }
+      }
+    }
+  };
+
+  countChart = new google.charts.Bar(document.getElementById('count_div'));
+
+  countChart.draw(countData, google.charts.Bar.convertOptions(options));
+  google.visualization.events.addListener(countChart, 'select', countSelectHandler);
+}
+
+google.load("visualization", "1", {packages:["corechart"]});
+google.setOnLoadCallback(drawLineCount);
+
+function drawLineCount() {
+  const array = [['Author', 'Line count']];
+  for (const key in scriptData) {
+    if (scriptData.hasOwnProperty(key)) {
+      const line_count = get_mean_value(scriptData[key]["authored"], "line_count_per_diff");
+      const author = get_author(key);
+      array.push([
+        author,
+        line_count
+      ]);
+    }
+  }
+  lineCountData = google.visualization.arrayToDataTable(array);
+
+  const options = {
+    title: 'Average line count per authored diff',
+    pieSliceText: 'value',
+    chartArea: {
+      width: 400,
+      height: 300
+    },
+    width: 500,
+    height: 400
+  };
+
+  lineCountChart = new google.visualization.PieChart(document.getElementById('line_div'));
+
+  setTimeout(function(){ lineCountChart.draw(lineCountData, options); }, 200);
+  google.visualization.events.addListener(lineCountChart, 'select', lineSelectHandler);
+}
+
+google.load("visualization", "1", {packages:["corechart"]});
+google.setOnLoadCallback(drawRevision);
+
+function drawRevision() {
+  const array = [['Author', 'Revision Count']];
+  for (const key in scriptData) {
+    if (scriptData.hasOwnProperty(key)) {
+      const revision_count = get_mean_value(scriptData[key]["closed"], "revision_count_per_diff");
+      const author = get_author(key);
+      array.push([
+        author,
+        revision_count
+      ]);
+    }
+  }
+  revisionData = google.visualization.arrayToDataTable(array);
+
+  const options = {
+    title: 'Average revisions per closed diff',
+    pieSliceText: 'value',
+    chartArea: {
+      width: 400,
+      height: 300
+    },
+    width: 500,
+    height: 400
+  };
+
+  revisionChart = new google.visualization.PieChart(document.getElementById('revision_div'));
+
+  setTimeout(function(){ revisionChart.draw(revisionData, options); }, 400);
+  google.visualization.events.addListener(revisionChart, 'select', revisionSelectHandler);
+}
+
+google.load("visualization", "1", {packages:["corechart"]});
+google.setOnLoadCallback(drawReviewed);
+
+function drawReviewed() {
+  const array = [['Author', 'First time to respond']];
+  for (const key in scriptData) {
+    if (scriptData.hasOwnProperty(key)) {
+      const respond = get_mean_value(scriptData[key]["reviewed"], "first_time_to_respond");
+      const author = get_author(key);
+      array.push([
+        author,
+        respond
+      ]);
+    }
+  }
+  respondData = google.visualization.arrayToDataTable(array);
+
+  const options = {
+    title: 'Average first time to respond to diff',
+    pieSliceText: 'value',
+    chartArea: {
+      width: 400,
+      height: 300
+    },
+    width: 500,
+    height: 400
+  };
+
+  respondChart = new google.visualization.PieChart(document.getElementById('respond_div'));
+
+  setTimeout(function(){ respondChart.draw(respondData, options); }, 600);
+  google.visualization.events.addListener(respondChart, 'select', respondSelectHandler);
+}
+
+function get_mean_value(object, key="") {
+  let value = null;
+  if(get_value(object, key)) {
+    value = get_value(object, key)["mean"];
+  }
+  return value;
+}
+
+function get_value(object, key="") {
+  let value = null;
+  if(object
+    && object !== 'null'
+    && object !== 'undefined'
+    && typeof object === 'object') {
+    if(key) {
+      value = object[key];
+    }
+    else {
+      value = object;
+    }
+  }
+  return value;
+}
+
+function get_author(key) {
+  let author = key;
+  if(key.indexOf('.') !== -1) {
+    author = key.substr(0, key.indexOf('.'));
+  }
+  return author;
+}
+
+function countSelectHandler() {
+    select(countChart.getSelection(), countData);
+}
+
+function lineSelectHandler() {
+    select(lineCountChart.getSelection(), lineCountData);
+}
+
+function revisionSelectHandler() {
+    select(revisionChart.getSelection(), revisionData);
+}
+
+function respondSelectHandler() {
+    select(respondChart.getSelection(), respondData);
+}
+
+function select(selection, data) {
+  let author = '';
+  for (let i = 0; i < selection.length; i++) {
+    let item = selection[i];
+    if (item.row != null) {
+        author = Object.keys(scriptData)[item.row]
+    }
+  }
+  if(author) {
+    location.href='/person/' + author
+  }
+}
+//]]>
+
+</script>
+
+
+{% endblock %}
